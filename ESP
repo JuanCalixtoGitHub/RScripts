@@ -1,0 +1,77 @@
+--[[
+	WARNING: Heads up! This script has not been verified by ScriptBlox. Use at your own risk!
+]]
+local Players = game:GetService("Players")
+local CoreGui = game:GetService("CoreGui")
+local LocalPlayer = Players.LocalPlayer
+
+-- Настройки
+local ESP_COLOR = Color3.fromRGB(255, 255, 255) -- Белый
+local FILL_TRANSPARENCY = 0.5
+local OUTLINE_TRANSPARENCY = 0
+
+-- Функция удаления старой подсветки
+local function removeHighlight(character)
+    for _, obj in ipairs(CoreGui:GetChildren()) do
+        if obj:IsA("Highlight") and obj.Adornee == character then
+            obj:Destroy()
+        end
+    end
+end
+
+-- Функция создания подсветки с проверкой команды
+local function updateHighlight(player)
+    -- Удаляем старую подсветку перед проверкой
+    if player.Character then
+        removeHighlight(player.Character)
+    end
+
+    -- Проверка: если игрок в другой команде (или если команд в игре вообще нет)
+    if player ~= LocalPlayer and (player.Team ~= LocalPlayer.Team or player.Team == nil) then
+        player.CharacterAdded:Connect(function(character)
+            wait(0.5) -- Небольшая задержка для загрузки персонажа
+            updateHighlight(player)
+        end)
+
+        if player.Character then
+            local highlight = Instance.new("Highlight")
+            highlight.Name = "Enemy_ESP"
+            highlight.FillColor = ESP_COLOR
+            highlight.OutlineColor = ESP_COLOR
+            highlight.FillTransparency = FILL_TRANSPARENCY
+            highlight.OutlineTransparency = OUTLINE_TRANSPARENCY
+            highlight.Adornee = player.Character
+            highlight.Parent = CoreGui
+        end
+    end
+end
+
+-- Следим за сменой команд у всех игроков
+local function setupPlayer(player)
+    player:GetPropertyChangedSignal("Team"):Connect(function()
+        updateHighlight(player)
+    end)
+    updateHighlight(player)
+end
+
+-- Начальная инициализация
+for _, player in ipairs(Players:GetPlayers()) do
+    setupPlayer(player)
+end
+
+-- Подписка на новых игроков
+Players.PlayerAdded:Connect(setupPlayer)
+
+-- Следим за сменой команды у самого себя (чтобы обновить врагов)
+LocalPlayer:GetPropertyChangedSignal("Team"):Connect(function()
+    for _, player in ipairs(Players:GetPlayers()) do
+        updateHighlight(player)
+    end
+end)
+
+-- Очистка при выходе
+Players.PlayerRemoving:Connect(function(player)
+    if player.Character then
+        removeHighlight(player.Character)
+    end
+end)
